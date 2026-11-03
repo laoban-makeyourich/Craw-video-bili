@@ -123,31 +123,21 @@ def download():
         fmt = ytdlp_format(quality)
     except Exception as exc:  # noqa: BLE001
         return f"<p>Loi: {exc}</p>", 400
-    out_template = os.path.join(DOWNLOAD_DIR, "%(title)s.%(ext)s")
-    cmd = [
-        "yt-dlp",
-        "-f", fmt,
-        "--merge-output-format", "mp4",
-        "-o", out_template,
-        "--no-playlist",
-        parsed["canonical_url"],
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
-    if result.returncode != 0:
+    try:
+        from downloader import download_video
+
+        result = download_video(parsed["canonical_url"], quality, DOWNLOAD_DIR)
+    except Exception as exc:  # noqa: BLE001
         return (
             "<p>Khong tai duoc video. Video co the la VIP, gioi han vung, "
             "hoac can dang nhap.</p>"
-            f"<pre>{result.stderr[-2000:]}</pre>"
+            f"<pre>{exc}</pre>"
             "<p><a href='/'>Quay lai</a></p>"
         ), 502
-    files = sorted(
-        (os.path.join(DOWNLOAD_DIR, f) for f in os.listdir(DOWNLOAD_DIR)),
-        key=os.path.getmtime,
+    return send_file(
+        result["output"], as_attachment=True,
+        download_name=os.path.basename(result["output"]),
     )
-    if not files:
-        return "<p>yt-dlp chay xong nhung khong tim thay file.</p>", 502
-    newest = files[-1]
-    return send_file(newest, as_attachment=True, download_name=os.path.basename(newest))
 
 
 if __name__ == "__main__":
