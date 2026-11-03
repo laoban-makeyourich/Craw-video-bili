@@ -83,27 +83,47 @@ def get_video_info(parsed):
         params = {"aid": parsed["id"]}
     else:
         raise ValueError("Link rut gon b23.tv can mo tren trinh duyet de lay BV id.")
-    resp = requests.get(
-        "https://api.bilibili.com/x/web-interface/view",
-        params=params,
-        headers=HEADERS,
-        timeout=20,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    if data.get("code") != 0:
-        raise ValueError(f"Bilibili API: {data.get('message', 'unknown error')}")
-    info = data["data"]
-    return {
-        "title": info.get("title"),
-        "owner": (info.get("owner") or {}).get("name"),
-        "cover": info.get("pic"),
-        "duration": info.get("duration"),
-        "pages": [
-            {"cid": p.get("cid"), "part": p.get("part"), "duration": p.get("duration")}
-            for p in info.get("pages") or []
-        ],
-    }
+    try:
+        resp = requests.get(
+            "https://api.bilibili.com/x/web-interface/view",
+            params=params,
+            headers=HEADERS,
+            timeout=20,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if data.get("code") != 0:
+            raise ValueError(f"Bilibili API: {data.get('message', 'unknown error')}")
+        info = data["data"]
+        return {
+            "title": info.get("title"),
+            "owner": (info.get("owner") or {}).get("name"),
+            "cover": info.get("pic"),
+            "duration": info.get("duration"),
+            "pages": [
+                {"cid": p.get("cid"), "part": p.get("part"), "duration": p.get("duration")}
+                for p in info.get("pages") or []
+            ],
+        }
+    except Exception:
+        # Bilibili's view API often returns 412 for unauthenticated
+        # datacenter requests, while yt-dlp extraction still works.
+        # Fall back to yt-dlp metadata instead of failing the page.
+        from downloader import _dump_json
+
+        canonical = (
+            f"https://www.bilibili.com/video/{parsed['id']}"
+            if parsed["kind"] == "BV"
+            else f"https://www.bilibili.com/video/av{parsed['id']}"
+        )
+        info = _dump_json(canonical)
+        return {
+            "title": info.get("title"),
+            "owner": info.get("uploader"),
+            "cover": info.get("thumbnail"),
+            "duration": info.get("duration"),
+            "pages": [],
+        }
 
 
 def quality_to_max_height(quality):
