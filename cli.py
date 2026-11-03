@@ -45,17 +45,13 @@ def main():
             print("Them --download de tai ve.")
         return 0
 
-    cmd = [
-        "yt-dlp",
-        "-f", ytdlp_format(args.quality),
-        "--merge-output-format", "mp4",
-        "-o", f"{args.outdir}/%(title)s.%(ext)s",
-        "--no-playlist",
-        parsed["canonical_url"],
-    ]
-    print("Running:", " ".join(cmd))
-    result = subprocess.run(cmd)
-    return result.returncode
+    from downloader import download_video
+
+    result = download_video(parsed["canonical_url"], args.quality, args.outdir)
+    print(f"Downloaded: {result['output']}")
+    print(f"Height: {result['height']}p, size: {result['size']} bytes, "
+          f"time: {result['seconds']}s")
+    return 0
 
 
 if __name__ == "__main__":
